@@ -93,19 +93,19 @@ wait_for_workflow_to_finish() {
   # Find the id of the last run using filters to identify the workflow triggered by this action
   echo "Getting the ID of the workflow..."
   query="event=workflow_dispatch&status=queued"
-  if [ "$INPUT_GITHUB_USER" ]
-  then
-    query="${query}&actor=${INPUT_GITHUB_USER}"
-  fi
-  last_workflow="null"
-  while [[ "$last_workflow" == "null" ]]
-  do
-    echo "Using the following params to filter the workflow runs to get the triggered run id -"
-    echo "Query params: ${query}"
-    last_workflow=$(curl -X GET "https://api.github.com/repos/${INPUT_OWNER}/${INPUT_REPO}/actions/workflows/${INPUT_WORKFLOW_FILE_NAME}/runs?${query}" \
-      -H 'Accept: application/vnd.github.antiope-preview+json' \
-      -H "Authorization: Bearer ${INPUT_GITHUB_TOKEN}" | jq '[.workflow_runs[]] | first')
-  done
+  # if [ "$INPUT_GITHUB_USER" ]
+  # then
+  #   query="${query}&actor=${INPUT_GITHUB_USER}"
+  # fi
+  # last_workflow="null"
+  # while [[ "$last_workflow" == "null" ]]
+  # do
+    # echo "Using the following params to filter the workflow runs to get the triggered run id -"
+    # echo "Query params: ${query}"
+  last_workflow=$(curl -X GET "https://api.github.com/repos/${INPUT_OWNER}/${INPUT_REPO}/actions/workflows/${INPUT_WORKFLOW_FILE_NAME}/runs" \
+    -H 'Accept: application/vnd.github.antiope-preview+json' \
+    -H "Authorization: Bearer ${INPUT_GITHUB_TOKEN}" | jq '[.workflow_runs[]] | first')
+  # done
   last_workflow_id=$(echo "${last_workflow}" | jq '.id')
   last_workflow_url="https://github.com/${INPUT_OWNER}/${INPUT_REPO}/actions/runs/${last_workflow_id}"
   echo "The workflow id is [${last_workflow_id}]."
@@ -113,10 +113,10 @@ wait_for_workflow_to_finish() {
   echo "::set-output name=workflow_id::${last_workflow_id}"
   echo "::set-output name=workflow_url::${last_workflow_url}"
   echo ""
-  conclusion=$(echo "${last_workflow}" | jq '.conclusion')
+  
   status=$(echo "${last_workflow}" | jq '.status')
 
-  while [[ "${conclusion}" == "null" && "${status}" != "\"completed\"" ]]
+  while [[ "${status}" != "\"completed\"" ]]
   do
     echo "Sleeping for \"${wait_interval}\" seconds"
     sleep "${wait_interval}"
@@ -129,6 +129,7 @@ wait_for_workflow_to_finish() {
     echo "Checking status [${status}]"
   done
 
+  conclusion=$(echo "${last_workflow}" | jq '.conclusion')
   if [[ "${conclusion}" == "\"success\"" && "${status}" == "\"completed\"" ]]
   then
     echo "Yes, success"
